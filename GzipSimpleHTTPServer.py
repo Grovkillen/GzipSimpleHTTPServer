@@ -36,15 +36,15 @@ def parse_options():
     global encoding_type
     parser.add_option("-e", "--encoding", dest="encoding_type",
                       help="Encoding type for server to utilize",
-                      metavar="ENCODING", default=encoding_type)
+                      metavar=encoding_type, default=encoding_type)
     global SERVER_PORT
     parser.add_option("-p", "--port", dest="port", default=SERVER_PORT,
                       help="The port to serve the files on",
-                      metavar="ENCODING")
+                      metavar=SERVER_PORT)
     global source
     parser.add_option("-s", "--source", dest="source",
                       help="Pick what file to serve ['index.html', 'index.htm', 'index.html.gz', 'index.htm.gz', 'index.gz'], default will serve in this order",
-                      metavar="ENCODING", default='')
+                      metavar="index.htm.gz", default='')
     (options, args) = parser.parse_args()
     encoding_type = options.encoding_type
     SERVER_PORT = int(options.port)
