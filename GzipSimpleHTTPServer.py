@@ -132,7 +132,6 @@ class SimpleHTTPRequestHandler(BaseHTTPServer.BaseHTTPRequestHandler):
                     if os.path.exists(index):
                         path = index
                     else:
-                        print("Couldn't load: " % path)
                         return self.list_directory(path).read()
             else:
                 for index in source_files:
@@ -146,7 +145,11 @@ class SimpleHTTPRequestHandler(BaseHTTPServer.BaseHTTPRequestHandler):
                         break
                 else:
                     return self.list_directory(path).read()
-        ctype = self.guess_type(path)
+
+        if not source_type == 'normal':
+            type = source_type
+
+        ctype = self.guess_type(path, type)
         print("Serving path '%s'" % path)
         try:
             # Always read in binary mode. Opening files in text mode may cause
@@ -162,9 +165,6 @@ class SimpleHTTPRequestHandler(BaseHTTPServer.BaseHTTPRequestHandler):
         fs = os.fstat(f.fileno())
         raw_content_length = fs[6]
         content = f.read()
-
-        if not source_type == 'normal':
-            type = source_type
 
         if type == 'normal':
             # Encode content based on runtime arg
@@ -246,7 +246,7 @@ class SimpleHTTPRequestHandler(BaseHTTPServer.BaseHTTPRequestHandler):
             path = os.path.join(path, word)
         return path
 
-    def guess_type(self, path):
+    def guess_type(self, path, type):
         """Guess the type of a file.
 
         Argument is a PATH (a filename).
@@ -262,11 +262,11 @@ class SimpleHTTPRequestHandler(BaseHTTPServer.BaseHTTPRequestHandler):
         """
 
         base, ext = posixpath.splitext(path)
+        if type == 'gzipped':
+            return self.extensions_map['.gzipped']
         if ext in self.extensions_map:
             return self.extensions_map[ext]
         ext = ext.lower()
-        if source_type == 'gzipped':
-            return self.extensions_map['.gzipped']
         if ext in self.extensions_map:
             return self.extensions_map[ext]
         else:
