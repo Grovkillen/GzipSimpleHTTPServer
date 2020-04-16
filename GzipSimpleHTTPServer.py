@@ -132,6 +132,7 @@ class SimpleHTTPRequestHandler(BaseHTTPServer.BaseHTTPRequestHandler):
                     if os.path.exists(index):
                         path = index
                     else:
+                        print("Couldn't load: " % path)
                         return self.list_directory(path).read()
             else:
                 for index in source_files:
@@ -265,7 +266,7 @@ class SimpleHTTPRequestHandler(BaseHTTPServer.BaseHTTPRequestHandler):
             return self.extensions_map[ext]
         ext = ext.lower()
         if source_type == 'gzipped':
-            return self.extensions_map['.gz']
+            return self.extensions_map['.gzipped']
         if ext in self.extensions_map:
             return self.extensions_map[ext]
         else:
@@ -276,7 +277,7 @@ class SimpleHTTPRequestHandler(BaseHTTPServer.BaseHTTPRequestHandler):
     extensions_map = mimetypes.types_map.copy()
     extensions_map.update({
         '': 'application/octet-stream', # Default
-        '.gz': 'text/html',
+        '.gzipped': 'text/html',
         '.py': 'text/plain',
         '.c': 'text/plain',
         '.h': 'text/plain'
