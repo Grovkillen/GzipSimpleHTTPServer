@@ -27,22 +27,36 @@ except ImportError:
 
 SERVER_PORT = 8000
 encoding_type = 'gzip'
+source = ''
+source_files = ['index.html', 'index.htm', 'index.html.gz', 'index.htm.gz', 'index.gz']
 
 def parse_options():
     # Option parsing logic.
     parser = OptionParser()
+    global encoding_type
     parser.add_option("-e", "--encoding", dest="encoding_type",
                       help="Encoding type for server to utilize",
-                      metavar="ENCODING", default='gzip')
+                      metavar="ENCODING", default=encoding_type)
     global SERVER_PORT
     parser.add_option("-p", "--port", dest="port", default=SERVER_PORT,
                       help="The port to serve the files on",
                       metavar="ENCODING")
+    global source
+    parser.add_option("-s", "--source", dest="source",
+                      help="Pick what file to serve ['index.html', 'index.htm', 'index.html.gz', 'index.htm.gz', 'index.gz'], default will serve in this order",
+                      metavar="ENCODING", default='')
     (options, args) = parser.parse_args()
-    global encoding_type
     encoding_type = options.encoding_type
     SERVER_PORT = int(options.port)
-
+    source = options.source
+    global source_type
+    base, ext = posixpath.splitext(source)
+    ext = ext.lower()
+    if ext == '.gz':
+        source_type = 'gzipped'
+    else:
+        source_type = 'normal'
+    global source_files
     if encoding_type not in ['zlib', 'deflate', 'gzip']:
         sys.stderr.write("Please provide a valid encoding_type for the server to utilize.\n")
         sys.stderr.write("Possible values are 'zlib', 'gzip', and 'deflate'\n")
@@ -104,8 +118,8 @@ class SimpleHTTPRequestHandler(BaseHTTPServer.BaseHTTPRequestHandler):
 
         """
         path = self.translate_path(self.path)
-        print("Serving path '%s'" % path)
         f = None
+        type = 'normal'
         if os.path.isdir(path):
             if not self.path.endswith('/'):
                 # redirect browser - doing basically what apache does
@@ -113,14 +127,26 @@ class SimpleHTTPRequestHandler(BaseHTTPServer.BaseHTTPRequestHandler):
                 self.send_header("Location", self.path + "/")
                 self.end_headers()
                 return None
-            for index in "index.html", "index.htm":
-                index = os.path.join(path, index)
-                if os.path.exists(index):
-                    path = index
-                    break
+            if not source == '':
+                    index = os.path.join(path, source)
+                    if os.path.exists(index):
+                        path = index
+                    else:
+                        return self.list_directory(path).read()
             else:
-                return self.list_directory(path).read()
+                for index in source_files:
+                    index = os.path.join(path, index)
+                    if os.path.exists(index):
+                        base, ext = posixpath.splitext(index)
+                        ext = ext.lower()
+                        if ext == '.gz':
+                            type = 'gzipped'
+                        path = index
+                        break
+                else:
+                    return self.list_directory(path).read()
         ctype = self.guess_type(path)
+        print("Serving path '%s'" % path)
         try:
             # Always read in binary mode. Opening files in text mode may cause
             # newline translations, making the actual size of the content
@@ -136,13 +162,17 @@ class SimpleHTTPRequestHandler(BaseHTTPServer.BaseHTTPRequestHandler):
         raw_content_length = fs[6]
         content = f.read()
 
-        # Encode content based on runtime arg
-        if encoding_type == "gzip":
-            content = gzip_encode(content)
-        elif encoding_type == "deflate":
-            content = deflate_encode(content)
-        elif encoding_type == "zlib":
-            content = zlib_encode(content)
+        if not source_type == 'normal':
+            type = source_type
+
+        if type == 'normal':
+            # Encode content based on runtime arg
+            if encoding_type == "gzip":
+                content = gzip_encode(content)
+            elif encoding_type == "deflate":
+                content = deflate_encode(content)
+            elif encoding_type == "zlib":
+                content = zlib_encode(content)
 
         compressed_content_length = len(content)
         f.close()
@@ -234,6 +264,8 @@ class SimpleHTTPRequestHandler(BaseHTTPServer.BaseHTTPRequestHandler):
         if ext in self.extensions_map:
             return self.extensions_map[ext]
         ext = ext.lower()
+        if source_type == 'gzipped':
+            return self.extensions_map['.gz']
         if ext in self.extensions_map:
             return self.extensions_map[ext]
         else:
@@ -244,9 +276,10 @@ class SimpleHTTPRequestHandler(BaseHTTPServer.BaseHTTPRequestHandler):
     extensions_map = mimetypes.types_map.copy()
     extensions_map.update({
         '': 'application/octet-stream', # Default
+        '.gz': 'text/html',
         '.py': 'text/plain',
         '.c': 'text/plain',
-        '.h': 'text/plain',
+        '.h': 'text/plain'
         })
 
 
@@ -261,7 +294,7 @@ def test(HandlerClass = SimpleHTTPRequestHandler,
 
     parse_options()
 
-    server_address = ('0.0.0.0', SERVER_PORT)
+    server_address = ('localhost', SERVER_PORT)
 
     SimpleHTTPRequestHandler.protocol_version = "HTTP/1.0"
     httpd = BaseHTTPServer.HTTPServer(server_address, SimpleHTTPRequestHandler)
